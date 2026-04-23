@@ -1,6 +1,6 @@
 use crate::types::{Certificate, PaymentAction, RegistryHealth, SdkError};
 
-const DEFAULT_REGISTRY: &str = "https://api.aigpsigma.ai";
+const DEFAULT_REGISTRY: &str = "https://api.aigpsigma.com";
 
 /// AIGP-Σ Registry client.
 ///
@@ -72,6 +72,15 @@ impl AigpSigma {
         let actions = serde_json::from_value(body["actions"].clone())
             .map_err(|e| SdkError::Registry(e.to_string()))?;
         Ok(actions)
+    }
+
+    /// Returns `true` if the certificate exists and is active.
+    ///
+    /// Useful for agent-to-agent trust checks before collaborating.
+    pub async fn is_valid(&self, credential_id: &str) -> bool {
+        self.verify(credential_id).await
+            .map(|c| c.is_active())
+            .unwrap_or(false)
     }
 
     /// Check registry health.

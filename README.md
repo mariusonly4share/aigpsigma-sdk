@@ -34,7 +34,7 @@ use aigpsigma_sdk::AigpSigma;
 
 #[tokio::main]
 async fn main() {
-    let sdk = AigpSigma::new(None); // uses https://api.aigpsigma.ai
+    let sdk = AigpSigma::new(None); // uses https://api.aigpsigma.com
 
     // Verify a certificate
     let cert = sdk.verify("aigp-cert-xxxxxxxx-xxx").await.unwrap();
@@ -125,7 +125,7 @@ The badge SVG is served with `Cache-Control: max-age=300` and reflects live stat
 
 ### `AigpSigma::new(registry_url: Option<&str>) -> AigpSigma`
 
-Creates a new SDK client. Pass `None` to use the production registry (`https://api.aigpsigma.ai`).
+Creates a new SDK client. Pass `None` to use the production registry (`https://api.aigpsigma.com`).
 
 ### `async verify(credential_id: &str) -> Result<Certificate, SdkError>`
 
@@ -161,6 +161,31 @@ pub struct Certificate {
     pub badge_url:     String,
     pub model_hash:    Option<String>, // SHA3-512 of model weights (optional)
     pub sdk_hash:      Option<String>, // SHA3-512 of SDK version (optional)
+}
+```
+
+---
+
+## Agent-to-Agent Trust
+
+AI agents can verify each other before collaborating — no API key required.
+Each agent can only look up a **specific certificate by ID** — there is no endpoint to list or enumerate the full registry.
+
+```rust
+use aigpsigma_sdk::AigpSigma;
+
+// Agent A checks Agent B is certified before accepting a task
+async fn trust_check(other_cert_id: &str) -> bool {
+    let sdk = AigpSigma::new(None);
+    sdk.is_valid(other_cert_id).await  // true only if status == "active"
+}
+
+// Or inspect scope + expiry in detail
+async fn scope_check(cert_id: &str) {
+    let sdk = AigpSigma::new(None);
+    let cert = sdk.verify(cert_id).await.unwrap();
+    assert!(cert.is_active());
+    assert!(cert.scope.contains(&"write".to_string()));
 }
 ```
 

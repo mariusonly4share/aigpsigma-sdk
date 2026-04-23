@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
     long_about = None,
 )]
 struct Cli {
-    /// Registry base URL (default: https://api.aigpsigma.ai)
+    /// Registry base URL (default: https://api.aigpsigma.com)
     #[arg(long, env = "AIGPSIGMA_REGISTRY", global = true)]
     registry: Option<String>,
 
