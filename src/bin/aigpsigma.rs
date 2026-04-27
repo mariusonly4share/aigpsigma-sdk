@@ -36,6 +36,8 @@ enum Command {
     },
     /// Check registry health
     Ping,
+    /// List Bitcoin OP_RETURN anchor checkpoints (WP-01 §13)
+    Anchors,
 }
 
 #[tokio::main]
@@ -75,7 +77,10 @@ async fn main() {
         }
 
         Command::Badge { credential_id } => {
-            println!("{}", sdk.badge_url(&credential_id));
+            match sdk.badge_url(&credential_id) {
+                Ok(url) => println!("{}", url),
+                Err(e)  => { eprintln!("Error: {}", e); std::process::exit(1); }
+            }
         }
 
         Command::Actions { credential_id } => {
@@ -89,7 +94,8 @@ async fn main() {
                         println!("  [{}] {} {} {} → {}",
                             a.created_at, a.action_type,
                             a.amount, a.currency, a.recipient);
-                        println!("       scope_check: {} | hash: {}...", a.scope_check, &a.action_hash[..16]);
+                        let hash_preview = a.action_hash.get(..16).unwrap_or(&a.action_hash);
+                        println!("       scope_check: {} | hash: {}...", a.scope_check, hash_preview);
                     }
                 }
                 Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
@@ -105,6 +111,24 @@ async fn main() {
                     println!("  Whitepapers:     {}", h.whitepapers.join(", "));
                 }
                 Err(e) => { eprintln!("✗ Registry unreachable: {}", e); std::process::exit(1); }
+            }
+        }
+
+        Command::Anchors => {
+            match sdk.anchors().await {
+                Ok(anchors) if anchors.is_empty() => {
+                    println!("No Bitcoin anchors yet — anchoring runs every 24h");
+                }
+                Ok(anchors) => {
+                    println!("{} Bitcoin anchor(s):\n", anchors.len());
+                    for a in &anchors {
+                        println!("  ⚓ {} | {} certs | {} sats fee",
+                            a.anchored_at, a.cert_count, a.fee_sats);
+                        println!("     txid:   {}", a.bitcoin_txid);
+                        println!("     verify: {}", a.verify_url);
+                    }
+                }
+                Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
             }
         }
     }

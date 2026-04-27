@@ -39,4 +39,4 @@ mod client;
 pub mod types;
 
 pub use client::AigpSigma;
-pub use types::{Certificate, PaymentAction, RegistryHealth, SdkError};
+pub use types::{AnchorRecord, Certificate, PaymentAction, RegistryHealth, SdkError};

@@ -54,6 +54,17 @@ pub struct RegistryHealth {
     pub whitepapers:     Vec<String>,
 }
 
+/// A Bitcoin OP_RETURN anchor record (WP-01 §13).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnchorRecord {
+    pub merkle_root:  String,
+    pub bitcoin_txid: String,
+    pub anchored_at:  String,
+    pub cert_count:   i64,
+    pub fee_sats:     i64,
+    pub verify_url:   String,
+}
+
 /// Error type for the SDK.
 #[derive(Debug, thiserror::Error)]
 pub enum SdkError {
