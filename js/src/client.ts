@@ -24,6 +24,10 @@ function validateUrl(url: string): void {
 }
 
 export interface AigpSigmaOptions {
+  /** Agent name — used to generate a deterministic fingerprint (model_hash) */
+  agentName?: string
+  /** Registry base URL (default: https://api.aigpsigma.com) */
+  registryUrl?: string
   /** Request timeout in milliseconds (default: 10 000) */
   timeoutMs?: number
 }
@@ -45,12 +49,24 @@ export interface AigpSigmaOptions {
 export class AigpSigma {
   private readonly baseUrl: string
   private readonly timeoutMs: number
+  private readonly agentName: string | undefined
 
-  constructor(registryUrl?: string, options?: AigpSigmaOptions) {
-    const url = (registryUrl ?? DEFAULT_REGISTRY).replace(/\/$/, '')
+  constructor(registryUrlOrOptions?: string | AigpSigmaOptions, options?: AigpSigmaOptions) {
+    let url: string
+    let opts: AigpSigmaOptions | undefined
+
+    if (typeof registryUrlOrOptions === 'object') {
+      opts = registryUrlOrOptions
+      url  = (opts.registryUrl ?? DEFAULT_REGISTRY).replace(/\/$/, '')
+    } else {
+      opts = options
+      url  = (registryUrlOrOptions ?? DEFAULT_REGISTRY).replace(/\/$/, '')
+    }
+
     validateUrl(url)
     this.baseUrl   = url
-    this.timeoutMs = options?.timeoutMs ?? 10_000
+    this.timeoutMs = opts?.timeoutMs ?? 10_000
+    this.agentName = opts?.agentName
   }
 
   private async request<T>(path: string): Promise<T> {
@@ -127,6 +143,30 @@ export class AigpSigma {
   async anchors(): Promise<AnchorRecord[]> {
     const data = await this.request<{ anchors: AnchorRecord[] }>('/v1/anchors')
     return data.anchors ?? []
+  }
+
+  /**
+   * Generate a deterministic SHA-256 fingerprint for the agent.
+   *
+   * Use this hash as `model_hash` when issuing a certificate — it
+   * cryptographically binds the certificate to this specific agent.
+   *
+   * @example
+   * ```ts
+   * const sigma = new AigpSigma({ agentName: 'My Agent' })
+   * const fingerprint = await sigma.getFingerprint()
+   * // paste fingerprint in the AIGP-Σ dashboard → issue cert
+   * ```
+   */
+  async getFingerprint(): Promise<string> {
+    if (!this.agentName) {
+      throw new Error('agentName is required to generate a fingerprint — pass it in the constructor: new AigpSigma({ agentName: "..." })')
+    }
+    const data   = new TextEncoder().encode(`aigpsigma:v1:${this.agentName}`)
+    const buffer = await crypto.subtle.digest('SHA-256', data)
+    return Array.from(new Uint8Array(buffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
   }
 
   /** Check registry health. */
