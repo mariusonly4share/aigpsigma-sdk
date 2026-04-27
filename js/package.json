@@ -1,0 +1,46 @@
+{
+  "name": "aigpsigma-sdk",
+  "version": "0.1.0",
+  "description": "Official JavaScript/TypeScript SDK for the AIGP-Σ AI Certification Registry",
+  "author": "AIGP-Σ <contact@aigpsigma.ai>",
+  "license": "MIT",
+  "homepage": "https://aigpsigma.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariusonly4share/aigpsigma-sdk.git"
+  },
+  "keywords": [
+    "ai",
+    "certification",
+    "aigp",
+    "sigma",
+    "registry",
+    "bitcoin",
+    "typescript"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
