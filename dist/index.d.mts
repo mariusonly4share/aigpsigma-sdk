@@ -116,6 +116,24 @@ declare class AigpSigma {
      * ```
      */
     getFingerprint(): Promise<string>;
+    /**
+     * Send a heartbeat for a certificate — proves the agent is online.
+     *
+     * Call this on every agent startup (and optionally on a schedule).
+     * Required within 24 hours of issuance to activate a free-tier cert.
+     *
+     * @returns `auto_renewed` — true if the cert was auto-renewed (expiry < 30 days)
+     *
+     * @example
+     * ```ts
+     * const sigma = new AigpSigma({ agentName: 'My Agent' })
+     * await sigma.heartbeat('aigp-cert-xxxxxxxx-xxx')
+     * ```
+     */
+    heartbeat(credentialId: string): Promise<{
+        ok: boolean;
+        auto_renewed: boolean;
+    }>;
     /** Check registry health. */
     ping(): Promise<RegistryHealth>;
 }

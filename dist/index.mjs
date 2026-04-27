@@ -1,6 +1,6 @@
 // src/client.ts
 var DEFAULT_REGISTRY = "https://api.aigpsigma.com";
-var SDK_VERSION = "0.1.0";
+var SDK_VERSION = "0.1.2";
 var INVALID_ID_RE = /[/\\.?#%@:\s\x00]/;
 function validateId(id) {
   if (!id || id.length > 128) {
@@ -123,6 +123,26 @@ var AigpSigma = class {
     const data = new TextEncoder().encode(`aigpsigma:v1:${this.agentName}`);
     const buffer = await crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  /**
+   * Send a heartbeat for a certificate — proves the agent is online.
+   *
+   * Call this on every agent startup (and optionally on a schedule).
+   * Required within 24 hours of issuance to activate a free-tier cert.
+   *
+   * @returns `auto_renewed` — true if the cert was auto-renewed (expiry < 30 days)
+   *
+   * @example
+   * ```ts
+   * const sigma = new AigpSigma({ agentName: 'My Agent' })
+   * await sigma.heartbeat('aigp-cert-xxxxxxxx-xxx')
+   * ```
+   */
+  async heartbeat(credentialId) {
+    validateId(credentialId);
+    return this.request(
+      `/v1/registry/${credentialId}/heartbeat`
+    );
   }
   /** Check registry health. */
   async ping() {
