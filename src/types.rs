@@ -3,19 +3,67 @@ use serde::{Deserialize, Serialize};
 /// A verified AIGP-Σ certificate record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Certificate {
-    pub credential_id:  String,
-    pub agent_name:     String,
-    pub tenant_id:      String,
-    pub issued_by:      String,
-    pub issued_at:      String,
-    pub expires_at:     String,
-    pub scope:          Vec<String>,
-    /// `"active"` | `"revoked"` | `"expired"`
-    pub status:         String,
-    pub registry_url:   String,
-    pub badge_url:      String,
-    pub model_hash:     Option<String>,
-    pub sdk_hash:       Option<String>,
+    pub credential_id:    String,
+    pub agent_name:       String,
+    pub tenant_id:        String,
+    pub issued_by:        String,
+    pub issued_at:        String,
+    pub expires_at:       String,
+    pub scope:            Vec<String>,
+    /// `"active"` | `"revoked"` | `"expired"` | `"suspended"`
+    pub status:           String,
+    pub registry_url:     String,
+    pub badge_url:        String,
+    pub tier:             Option<String>,
+    pub org_name:         Option<String>,
+    pub model_hash:       Option<String>,
+    pub sdk_hash:         Option<String>,
+    pub chain_hash:       Option<String>,
+    pub anchor_frequency: Option<String>,
+    pub last_heartbeat:   Option<String>,
+}
+
+/// Request body for registering a new certificate (public endpoint — no API key required).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterRequest {
+    pub agent_name: String,
+    pub scope:      Vec<String>,
+    pub model_hash: String,
+    pub org_name:   Option<String>,
+}
+
+/// Response from a successful certificate registration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterResponse {
+    pub ok:            bool,
+    pub credential_id: String,
+    pub agent_name:    String,
+    pub tenant_id:     String,
+    pub status:        String,
+    pub issued_at:     String,
+    pub expires_at:    String,
+    pub scope:         Vec<String>,
+    pub registry_url:  String,
+    pub badge_url:     String,
+    pub tier:          String,
+}
+
+/// WP-06: Result of verifying an OTT or DAT token.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenVerification {
+    pub valid:      bool,
+    pub token_id:   String,
+    pub token_type: String,
+    pub owner_id:   String,
+    pub agent_id:   String,
+    /// Set for OTT — the specific action this token authorises.
+    pub action:     Option<String>,
+    /// Set for DAT — the scope this session token covers.
+    pub scope:      Option<String>,
+    pub target:     Option<String>,
+    /// `"USED"` for consumed OTT, `"PENDING"` for active DAT.
+    pub status:     String,
+    pub expires_at: String,
 }
 
 impl Certificate {
@@ -57,12 +105,12 @@ pub struct RegistryHealth {
 /// A Bitcoin OP_RETURN anchor record (WP-01 §13).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnchorRecord {
-    pub merkle_root:  String,
-    pub bitcoin_txid: String,
-    pub anchored_at:  String,
-    pub cert_count:   i64,
-    pub fee_sats:     i64,
-    pub verify_url:   String,
+    pub merkle_root: String,
+    pub tx_hash:     String,
+    pub anchored_at: String,
+    pub cert_count:  i64,
+    pub fee_sats:    i64,
+    pub verify_url:  String,
 }
 
 /// Error type for the SDK.

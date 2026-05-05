@@ -1,6 +1,6 @@
 {
   "name": "aigpsigma-sdk",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Official JavaScript/TypeScript SDK for the AIGP-Σ AI Certification Registry",
   "author": "AIGP-Σ <contact@aigpsigma.ai>",
   "license": "MIT",

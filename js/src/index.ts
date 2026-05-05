@@ -4,5 +4,8 @@ export type {
   AnchorRecord,
   Certificate,
   PaymentAction,
+  RegisterRequest,
+  RegisterResponse,
   RegistryHealth,
+  TokenVerification,
 } from './types.js'

@@ -124,7 +124,7 @@ async fn main() {
                     for a in &anchors {
                         println!("  ⚓ {} | {} certs | {} sats fee",
                             a.anchored_at, a.cert_count, a.fee_sats);
-                        println!("     txid:   {}", a.bitcoin_txid);
+                        println!("     txid:   {}", a.tx_hash);
                         println!("     verify: {}", a.verify_url);
                     }
                 }

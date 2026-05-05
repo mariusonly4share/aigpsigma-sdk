@@ -1,4 +1,4 @@
-use crate::types::{AnchorRecord, Certificate, PaymentAction, RegistryHealth, SdkError};
+use crate::types::{AnchorRecord, Certificate, PaymentAction, RegisterRequest, RegisterResponse, RegistryHealth, SdkError, TokenVerification};
 
 const DEFAULT_REGISTRY: &str = "https://api.aigpsigma.com";
 
@@ -139,5 +139,68 @@ impl AigpSigma {
             .error_for_status()?
             .json().await?;
         Ok(health)
+    }
+
+    /// Register a new certificate directly from the platform.
+    ///
+    /// Calls the **public** endpoint — no API key required.
+    /// Use [`AigpSigma::fingerprint`] to generate the required `model_hash`.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use aigpsigma_sdk::{AigpSigma, types::RegisterRequest};
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let sdk = AigpSigma::new(None);
+    ///     let cert = sdk.register(RegisterRequest {
+    ///         agent_name: "my-agent".into(),
+    ///         scope:      vec!["read".into()],
+    ///         model_hash: "aabbcc...".into(),
+    ///         org_name:   None,
+    ///     }).await.unwrap();
+    ///     println!("{} — {}", cert.credential_id, cert.status);
+    /// }
+    /// ```
+    pub async fn register(&self, req: RegisterRequest) -> Result<RegisterResponse, SdkError> {
+        let url = format!("{}/v1/certificates/register", self.registry_url);
+        let resp = self.http
+            .post(&url)
+            .json(&req)
+            .send().await?;
+        if !resp.status().is_success() {
+            let msg = resp.text().await.unwrap_or_default();
+            return Err(SdkError::Registry(msg));
+        }
+        Ok(resp.json::<RegisterResponse>().await?)
+    }
+
+    /// Generate a deterministic SHA-256 hex fingerprint for `agent_name`.
+    ///
+    /// Produces the same value as the JS `AigpSigma.getFingerprint()` method.
+    /// Use the result as `model_hash` in [`register`](Self::register).
+    pub fn fingerprint(agent_name: &str) -> String {
+        use sha2::{Digest, Sha256};
+        let input = format!("aigpsigma:v1:{}", agent_name);
+        let hash = Sha256::digest(input.as_bytes());
+        hash.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    /// WP-06: Verify an OTT or DAT token issued by the AIGP-Σ registry.
+    ///
+    /// - **OTT** (`ott-...`): consumed atomically on first call — `status: "USED"`.
+    /// - **DAT** (`dat-...`): validated but not consumed. Pass `jti` for DPoP replay prevention.
+    ///
+    /// Platforms call this to verify agent tokens and retrieve `owner_id` for billing.
+    pub async fn verify_token(
+        &self,
+        token_id: &str,
+        jti: Option<&str>,
+    ) -> Result<TokenVerification, SdkError> {
+        let qs = jti.map(|j| format!("?jti={}", j)).unwrap_or_default();
+        let url = format!("{}/v1/registry/token/{}{}", self.registry_url, token_id, qs);
+        let resp = self.http.get(&url).send().await?;
+        let result: TokenVerification = resp.json().await?;
+        Ok(result)
     }
 }

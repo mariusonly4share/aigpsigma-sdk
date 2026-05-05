@@ -1,7 +1,7 @@
-import type { AnchorRecord, Certificate, PaymentAction, RegistryHealth } from './types.js'
+import type { AnchorRecord, Certificate, PaymentAction, RegisterRequest, RegisterResponse, RegistryHealth, TokenVerification } from './types.js'
 
 const DEFAULT_REGISTRY = 'https://api.aigpsigma.com'
-const SDK_VERSION      = '0.1.2'
+const SDK_VERSION      = '0.2.0'
 
 // Blocks path traversal, URL encoding bypass (%2F), and SSRF-helper chars
 const INVALID_ID_RE = /[/\\.?#%@:\s\x00]/
@@ -193,5 +193,93 @@ export class AigpSigma {
   /** Check registry health. */
   async ping(): Promise<RegistryHealth> {
     return this.request<RegistryHealth>('/health')
+  }
+
+  /**
+   * Register a new certificate directly from the platform.
+   *
+   * Calls the **public** endpoint — no API key required.
+   * The certificate is created with status `active` for free tier.
+   *
+   * Use `getFingerprint()` to generate the required `model_hash`.
+   *
+   * @example
+   * ```ts
+   * const sdk = new AigpSigma({ agentName: 'my-trading-bot' })
+   * const fingerprint = await sdk.getFingerprint()
+   *
+   * const cert = await sdk.register({
+   *   agent_name: 'my-trading-bot',
+   *   scope: ['read', 'trade'],
+   *   model_hash: fingerprint,
+   *   org_name: 'Acme Corp',
+   * })
+   * console.log(cert.credential_id, cert.status)
+   * ```
+   */
+  async register(req: RegisterRequest): Promise<RegisterResponse> {
+    const ctrl = new AbortController()
+    const tid  = setTimeout(() => ctrl.abort(), this.timeoutMs)
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/certificates/register`, {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sdk':        `aigpsigma-js/${SDK_VERSION}`,
+        },
+        body:   JSON.stringify(req),
+        signal: ctrl.signal,
+      })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(
+          `HTTP ${res.status}: ${
+            body?.error ?? JSON.stringify(body) ?? res.statusText
+          }`
+        )
+      }
+      return body as RegisterResponse
+    } finally {
+      clearTimeout(tid)
+    }
+  }
+
+  /**
+   * WP-06: Verify an OTT or DAT token issued by the AIGP-Σ registry.
+   *
+   * - **OTT** (`ott-...`): consumed atomically on first call — returns `status: "USED"`.
+   *   Any subsequent call returns `valid: false, error: "TOKEN_USED"`.
+   * - **DAT** (`dat-...`): validated but not consumed. Pass `jti` for DPoP replay prevention.
+   *
+   * Platforms integrating with AIGP-Σ call this to verify agent tokens before
+   * serving a request and attributing usage to `owner_id`.
+   *
+   * @example
+   * ```ts
+   * const result = await sdk.verifyToken('ott-abc123')
+   * if (result.valid) {
+   *   console.log('Owner:', result.owner_id, '| Action:', result.action)
+   * }
+   * ```
+   */
+  async verifyToken(tokenId: string, jti?: string): Promise<TokenVerification> {
+    const qs = jti ? `?jti=${encodeURIComponent(jti)}` : ''
+    try {
+      return await this.request<TokenVerification>(`/v1/registry/token/${tokenId}${qs}`)
+    } catch (e: any) {
+      if (String(e?.message).includes('HTTP 401')) {
+        const msg = String(e.message)
+        return {
+          valid:      false,
+          token_id:   tokenId,
+          token_type: '',
+          owner_id:   '',
+          agent_id:   '',
+          status:     msg.includes('USED') ? 'USED' : msg.includes('EXPIRED') ? 'EXPIRED' : 'INVALID',
+          expires_at: '',
+        }
+      }
+      throw e
+    }
   }
 }
